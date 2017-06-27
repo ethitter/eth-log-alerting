@@ -11,5 +11,4 @@ Pipe logs to Mattermost or Slack webhooks
 
 * Config file(s)
 * Init script with defaults override, restart, etc
-* Replace PHP script with straight bash script
 * Make binary deps paths configurable?
