@@ -9,7 +9,7 @@ COLOR=${5:-default}
 ICON_URL=$6
 GREP=$7
 
-tail -n0 -F "$LOG_FILE" | while read LINE; do
+tail -Fq "$LOG_FILE" | while read LINE; do
     (echo "$LINE" | grep -e "$GREP") && jq -n --arg line_encoded "    $LINE"  \ "{ \
         channel: \"$CHANNEL\", \
         username: \"$USERNAME\", \
