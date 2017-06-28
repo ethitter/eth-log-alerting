@@ -1,3 +1,4 @@
+# Set log details
 LOG_FILE=""
 WEBHOOK_URL=""
 USERNAME=""
@@ -6,5 +7,8 @@ COLOR=""
 ICON_URL=""
 GREP=""
 
+# Once log details are entered, change this to `true`
+CONFIGURED=false
+
 # DO NOT MODIFY BELOW THIS LINE!
-DAEMON_OPTIONS="\"$LOG_FILE\" \"$WEBHOOK_URL\" \"$USERNAME\" \"$CHANNEL\" \"$COLOR\" \"$ICON_URL\" \"$GREP\""
+DAEMON_OPTIONS="$LOG_FILE \"$WEBHOOK_URL\" \"$USERNAME\" \"$CHANNEL\" \"$COLOR\" \"$ICON_URL\" \"$GREP\""

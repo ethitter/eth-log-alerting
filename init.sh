@@ -6,126 +6,78 @@
 # Required-Stop:     $network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: Pipe log entries to Mattermost
+# Short-Description: Log entry alerting
 ### END INIT INFO
 
-# Defaults
-DAEMON_NAME="ETH Log Alerting"
-DAEMON_EXECUTABLE="/usr/local/eth-log-alerting/pipe.sh"
-DAEMON_OPTIONS=""
-DAEMON_HOMEDIR="/usr/local/eth-log-alerting"
-DAEMON_PIDFILE="/var/run/eth_log_alerting.pid"
-DAEMON_LOGFILE="/var/log/eth_log_alerting.log"
-INIT_SLEEPTIME="2"
-
-# Defaults can be overridden in this file
-DAEMON_DEFAULTS_FILE="/etc/default/eth_log_alerting"
-
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
-
-# Load alternate configuration if exists
-test -f $DAEMON_DEFAULTS_FILE && . $DAEMON_DEFAULTS_FILE
+set -e
 
 . /lib/lsb/init-functions
 
-# Usually no need to edit below this point. Just have these ready:
-#
-# * DAEMON_EXECUTABLE - full path to the executable
-# * DAEMON_OPTIONS    - options to pass to the executable
-# * DAEMON_NAME       - a decriptive name
-# * DAEMON_HOMEDIR    - place where to cd before running
-# * DAEMON_PIDFILE    - pid file name
-# * DAEMON_LOGFILE    - log file name
-# * INIT_SLEEPTIME    - how long to wait for startup and shutdown
-#
-# The rest will be taken care of. Executable is run with "nohup", so no
-# need to fork.
+DAEMON="/usr/local/eth-log-alerting/pipe.sh"
+NAME="eth_log_alerting"
+DESC="log alerting"
+DAEMON_OPTIONS=
+PID="/run/$NAME.pid"
 
-is_running () {
-  # Test whether pid file exists or not
-  test -f $DAEMON_PIDFILE || return 1
+# Check if DAEMON binary exist
+[ -f $DAEMON ] || exit 0
 
-  # Test whether process is running or not
-  read PID < "$DAEMON_PIDFILE"
-  ps -p $PID >/dev/null 2>&1 || return 1
+[ -f "/etc/default/$NAME" ] && . /etc/default/$NAME
 
-  # Is running
-  return 0
+daemon_not_configured () {
+  if [ "$1" != "stop" ]
+  then
+    printf "\tplease configure %s by editing /etc/default/%s\n" $NAME $NAME
+    printf "\tand set the \"CONFIGURED\" variable to \"true\" to allow\n"
+    printf "\t%s to start\n" $NAME
+  fi
+  exit 0
 }
 
-root_only () {
-  if [ "$(id -u)" != "0" ]; then
-    echo "Only root should run this operation"
-    exit 1
+config_checks () {
+  # Check that log is configured
+  if [ -z "$DAEMON_OPTIONS" ] || [ "$CONFIGURED" != "true" ]
+  then
+    daemon_not_configured "$1"
   fi
-}
-
-run () {
-  if is_running; then
-    PID="$(cat $DAEMON_PIDFILE)"
-    echo "Daemon is already running as PID $PID"
-    return 1
-  fi
-
-  cd $DAEMON_HOMEDIR
-
-  nohup $DAEMON_EXECUTABLE $DAEMON_OPTIONS >>$DAEMON_LOGFILE 2>&1 &
-  echo $! > $DAEMON_PIDFILE
-  read PID < "$DAEMON_PIDFILE"
-
-  sleep $INIT_SLEEPTIME
-  if ! is_running; then
-    echo "Daemon died immediately after starting. Please check your logs and configurations."
-    return 1
-  fi
-
-  echo "Daemon is running as PID $PID"
-  return 0
-}
-
-stop () {
-  if is_running; then
-    read PID < "$DAEMON_PIDFILE"
-    kill $PID
-  fi
-  sleep $INIT_SLEEPTIME
-  if is_running; then
-    while is_running; do
-      echo "waiting for daemon to die (PID $PID)"
-      sleep $INIT_SLEEPTIME
-    done
-  fi
-  rm -f "$DAEMON_PIDFILE"
-  return 0
 }
 
 case "$1" in
   start)
-    root_only
-    log_daemon_msg "Starting $DAEMON_NAME"
-    run
-    log_end_msg $?
+    log_daemon_msg "Starting $DESC" "$NAME"
+    config_checks "$1"
+    if start-stop-daemon --start --quiet --oknodo --pidfile $PID --exec $DAEMON -- $DAEMON_OPTIONS 1>/dev/null
+    then
+      log_end_msg 0
+    else
+      log_end_msg 1
+    fi
     ;;
   stop)
-    root_only
-    log_daemon_msg "Stopping $DAEMON_NAME"
-    stop
-    log_end_msg $?
+    log_daemon_msg "Stopping $DESC" "$NAME"
+    if start-stop-daemon --retry TERM/5/KILL/5 --oknodo --stop --quiet --pidfile $PID 1>/dev/null
+    then
+      log_end_msg 0
+    else
+      log_end_msg 1
+    fi
     ;;
   restart)
-    root_only
-    $0 stop && $0 start
+    log_daemon_msg "Restarting $DESC" "$NAME"
+    start-stop-daemon --retry TERM/5/KILL/5 --oknodo --stop --quiet --pidfile $PID 1>/dev/null
+    if start-stop-daemon --start --quiet --oknodo --pidfile $PID --exec $DAEMON -- $DAEMON_OPTIONS 1>/dev/null
+    then
+      log_end_msg 0
+    else
+      log_end_msg 1
+    fi
     ;;
   status)
-    status_of_proc \
-      -p "$DAEMON_PIDFILE" \
-      "$DAEMON_EXECUTABLE" \
-      "$DAEMON_NAME" \
-      && exit 0 \
-      || exit $?
+    status_of_proc -p $PID $DAEMON $NAME
     ;;
   *)
-    echo "Usage: $0 {start|stop|restart|status}"
-    exit 1
-  ;;
+    log_action_msg "Usage: /etc/init.d/$NAME {start|stop|restart|status}"
+    ;;
 esac
+
+exit 0
