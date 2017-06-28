@@ -27,16 +27,14 @@ PID="/run/$NAME.pid"
 daemon_not_configured () {
   if [ "$1" != "stop" ]
   then
-    printf "\tplease configure %s by editing /etc/default/%s\n" $NAME $NAME
-    printf "\tand set the \"CONFIGURED\" variable to \"true\" to allow\n"
-    printf "\t%s to start\n" $NAME
+    log_daemon_msg "Configuration required! Update /etc/default/$NAME"
+    exit 0
   fi
-  exit 0
 }
 
 config_checks () {
   # Check that log is configured
-  if [ -z "$DAEMON_OPTIONS" ] || [ "$CONFIGURED" != "true" ]
+  if [ -z "$DAEMON_OPTIONS" ]
   then
     daemon_not_configured "$1"
   fi
