@@ -24,5 +24,5 @@ tail -n0 -F "$LOG_FILE" | while read LINE; do
     -X POST \
     -s \
     -d@- \
-    $WEBHOOK_URL;
+    $WEBHOOK_URL > /dev/null;
 done
