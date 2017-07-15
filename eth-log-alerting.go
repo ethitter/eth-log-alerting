@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"syscall"
 
 	"github.com/asaskevich/govalidator"
@@ -14,12 +15,13 @@ import (
 )
 
 var (
-	logPath    string
-	webhookURL string
-	username   string
-	channel    string
-	color      string
-	iconURL    string
+	logPath     string
+	webhookURL  string
+	username    string
+	channel     string
+	color       string
+	iconURL     string
+	searchRegex string
 
 	logger    *log.Logger
 	debugDest string
@@ -35,6 +37,7 @@ func init() {
 	flag.StringVar(&channel, "channel", "", "Channel to post log entries to")
 	flag.StringVar(&color, "color", "default", "Color for entry, either named or hex with `#`")
 	flag.StringVar(&iconURL, "icon-url", "", "URL of icon to use for bot")
+	flag.StringVar(&searchRegex, "search", "", "Search term or regex to match")
 	flag.StringVar(&debugDest, "debug-dest", "os.Stdout", "Destination for debug and other messages, omit to log to Stdout")
 	flag.BoolVar(&debug, "debug", false, "Include additional log data for debugging")
 	flag.Parse()
@@ -72,7 +75,14 @@ func tailLog() {
 	}
 
 	for line := range t.Lines {
-		sendLine(line)
+		if len(searchRegex) == 0 {
+			go sendLine(line)
+		} else {
+			matched, _ := regexp.MatchString(searchRegex, line.Text)
+			if matched {
+				go sendLine(line)
+			}
+		}
 	}
 }
 
