@@ -33,11 +33,11 @@ var (
 	iconURL     string
 	searchRegex string
 
+	mh *matterhook.Client
+
 	logger    *log.Logger
 	debugDest string
 	debug     bool
-
-	tailer *tail.Tail
 )
 
 func init() {
@@ -59,25 +59,16 @@ func init() {
 	if !govalidator.IsURL(webhookURL) || len(channel) < 2 {
 		usage()
 	}
+
+	mh = matterhook.New(webhookURL, matterhook.Config{DisableServer: true})
 }
 
 func main() {
 	logger.Printf("Monitoring %s", logPath)
 	logger.Printf("Forwarding to channel \"%s\" as user \"%s\" at %s", channel, username, webhookURL)
+
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-
-	go tailAndSend()
-
-	caughtSig := <-sig
-	tailer.Stop()
-	tailer.Cleanup()
-	logger.Printf("Stopping, got signal %s", caughtSig)
-}
-
-func tailAndSend() {
-	mhConfig := matterhook.Config{DisableServer: true}
-	mh := matterhook.New(webhookURL, mhConfig)
 
 	t, err := tail.TailFile(logPath, tail.Config{
 		Follow:    true,
@@ -86,30 +77,37 @@ func tailAndSend() {
 		ReOpen:    true,
 		Logger:    logger,
 	})
-	tailer = t
-
 	if err != nil {
 		logger.Println(err)
-		usage()
+		t.Cleanup()
+		close(sig)
+		os.Exit(3)
 	}
 
+	go parseLinesAndSend(t)
+
+	caughtSig := <-sig
+	t.Stop()
+	t.Cleanup()
+
+	logger.Printf("Stopping, got signal %s", caughtSig)
+}
+
+func parseLinesAndSend(t *tail.Tail) {
 	for line := range t.Lines {
 		if line.Err != nil {
 			continue
 		}
 
 		if len(searchRegex) == 0 {
-			go sendLine(mh, line)
-		} else {
-			matched, _ := regexp.MatchString(searchRegex, line.Text)
-			if matched {
-				go sendLine(mh, line)
-			}
+			go sendLine(line)
+		} else if matched, _ := regexp.MatchString(searchRegex, line.Text); matched {
+			go sendLine(line)
 		}
 	}
 }
 
-func sendLine(mh *matterhook.Client, line *tail.Line) {
+func sendLine(line *tail.Line) {
 	atts := attachments{
 		attachment{
 			Fallback: fmt.Sprintf("New entry in %s", logPath),
