@@ -75,6 +75,10 @@ func tailLog() {
 	}
 
 	for line := range t.Lines {
+		if line.Err != nil {
+			continue
+		}
+
 		if len(searchRegex) == 0 {
 			go sendLine(line)
 		} else {
