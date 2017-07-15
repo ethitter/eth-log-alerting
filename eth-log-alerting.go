@@ -10,9 +10,19 @@ import (
 	"regexp"
 	"syscall"
 
+	"github.com/42wim/matterbridge/matterhook"
 	"github.com/asaskevich/govalidator"
 	"github.com/hpcloud/tail"
 )
+
+type attachment struct {
+	Fallback string `json:"fallback,omitempty"`
+	Pretext  string `json:"pretext,omitempty"`
+	Text     string `json:"text"`
+	Color    string `json:"color,omitempty"`
+}
+
+type attachments []attachment
 
 var (
 	logPath     string
@@ -57,7 +67,7 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-	go tailLog()
+	go tailAndSend()
 
 	caughtSig := <-sig
 	tailer.Stop()
@@ -65,8 +75,17 @@ func main() {
 	logger.Printf("Stopping, got signal %s", caughtSig)
 }
 
-func tailLog() {
-	t, err := tail.TailFile(logPath, tail.Config{Follow: true, MustExist: true, ReOpen: true})
+func tailAndSend() {
+	mhConfig := matterhook.Config{DisableServer: true}
+	mh := matterhook.New(webhookURL, mhConfig)
+
+	t, err := tail.TailFile(logPath, tail.Config{
+		Follow:    true,
+		Location:  &tail.SeekInfo{Offset: 0, Whence: 2},
+		MustExist: true,
+		ReOpen:    true,
+		Logger:    logger,
+	})
 	tailer = t
 
 	if err != nil {
@@ -80,18 +99,32 @@ func tailLog() {
 		}
 
 		if len(searchRegex) == 0 {
-			go sendLine(line)
+			go sendLine(mh, line)
 		} else {
 			matched, _ := regexp.MatchString(searchRegex, line.Text)
 			if matched {
-				go sendLine(line)
+				go sendLine(mh, line)
 			}
 		}
 	}
 }
 
-func sendLine(line *tail.Line) {
-	logger.Println(line.Text)
+func sendLine(mh *matterhook.Client, line *tail.Line) {
+	atts := attachments{
+		attachment{
+			Fallback: fmt.Sprintf("New entry in %s", logPath),
+			Pretext:  fmt.Sprintf("In `%s` at `%s`:", logPath, line.Time),
+			Text:     fmt.Sprintf("    %s", line.Text),
+			Color:    color,
+		},
+	}
+
+	mh.Send(matterhook.OMessage{
+		Channel:     channel,
+		UserName:    username,
+		Attachments: atts,
+		IconURL:     iconURL,
+	})
 }
 
 func setUpLogger() {
