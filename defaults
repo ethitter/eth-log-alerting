@@ -1,0 +1,3 @@
+# DAEMON="/usr/local/bin/eth-log-alerting/eth-log-alerting"
+# DAEMON_ARGS="-config /usr/local/bin/eth-log-alerting/config.json"
+# USER="www-data"

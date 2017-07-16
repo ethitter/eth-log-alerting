@@ -3,15 +3,20 @@ Log Alerting
 
 Pipe logs to Mattermost (or Slack) webhooks
 
-# Requirements
+## Requirements
+
 * Go 1.8.3
 
-# Installation
-1. TBD
-<!-- 1. `git clone https://git.ethitter.com/debian/eth-log-alerting.git /usr/local/eth-log-alerting`
-2. `cp /usr/local/eth-log-alerting/systemd.service /etc/systemd/system/eth_log_alerting.service`
-3. `cp /usr/local/eth-log-alerting/defaults /etc/default/eth_log_alerting`
-4. Edit `/etc/default/eth_log_alerting`
-5. `systemctl daemon-reload`
-6. `systemctl enable eth_log_alerting.service`
-6. `systemctl start eth_log_alerting.service` -->
+## Installation
+
+1. `git clone https://git.ethitter.com/debian/eth-log-alerting.git /usr/local/bin/eth-log-alerting`
+1. `cd /usr/local/bin/eth-log-alerting`
+1. `go build eth-log-alerting.go`
+1. `cp /usr/local/bin/eth-log-alerting/init.sh /etc/init.d/eth-log-alerting`
+1. `chmod +x /etc/init.d/eth-log-alerting`
+1. `cp /usr/local/bin/eth-log-alerting/config-sample.json /usr/local/bin/eth-log-alerting/config.json`
+1. Edit `/usr/local/bin/eth-log-alerting/config.json`
+1. `cp /usr/local/bin/eth-log-alerting/defaults /etc/default/eth_log_alerting`
+1. Edit `/etc/default/eth_log_alerting`
+1. `update-rc.d eth-log-alerting defaults`
+1. `/etc/init.d/eth-log-alerting start`
