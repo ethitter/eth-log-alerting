@@ -38,6 +38,8 @@ var (
 	logger    *log.Logger
 	debugDest string
 	debug     bool
+
+	bad_var_name string
 )
 
 func init() {
@@ -56,7 +58,7 @@ func init() {
 
 	validatePath(&logPath)
 
-	if !govalidator.IsURL(webhookURL) || len(channel) < 2 {
+	if ! govalidator.IsURL(webhookURL) || len(channel) < 2 {
 		usage()
 	}
 
