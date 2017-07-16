@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -17,21 +18,19 @@ import (
 )
 
 type config struct {
-	DebugDest string
-	Debug     bool
-	Logs      logConfigs
+	DebugDest string      `json:"debug-dest"`
+	Debug     bool        `json:"debug"`
+	Logs      []logConfig `json:"logs"`
 }
 
-type logConfigs []logConfig
-
 type logConfig struct {
-	logPath     string
-	webhookURL  string
-	username    string
-	channel     string
-	color       string
-	iconURL     string
-	searchRegex string
+	LogPath     string `json:"log_path"`
+	WebhookURL  string `json:"webhook_url"`
+	Username    string `json:"username"`
+	Channel     string `json:"channel"`
+	Color       string `json:"color"`
+	IconURL     string `json:"icon_url"`
+	SearchRegex string `json:"search"`
 }
 
 type attachment struct {
@@ -44,15 +43,8 @@ type attachment struct {
 type attachments []attachment
 
 var (
-	logPath     string // Deprecate
-	webhookURL  string // Deprecate
-	username    string // Deprecate
-	channel     string // Deprecate
-	color       string // Deprecate
-	iconURL     string // Deprecate
-	searchRegex string // Deprecate
-
-	mh *matterhook.Client // Deprecate
+	configPath string
+	logConfigs []logConfig
 
 	logger    *log.Logger
 	debugDest string
@@ -60,102 +52,115 @@ var (
 )
 
 func init() {
-	var configPath string
-	// flag.StringVar(&logPath, "log-path", "", "Log to monitor")
-	// flag.StringVar(&webhookURL, "webhook", "", "Webhook to forward log entries to")
-	// flag.StringVar(&username, "username", "logbot", "Username to post as")
-	// flag.StringVar(&channel, "channel", "", "Channel to post log entries to")
-	// flag.StringVar(&color, "color", "default", "Color for entry, either named or hex with `#`")
-	// flag.StringVar(&iconURL, "icon-url", "", "URL of icon to use for bot")
-	// flag.StringVar(&searchRegex, "search", "", "Search term or regex to match")
-	// flag.StringVar(&debugDest, "debug-dest", "os.Stdout", "Destination for debug and other messages, omit to log to Stdout")
-	// flag.BoolVar(&debug, "debug", false, "Include additional log data for debugging")
 	flag.StringVar(&configPath, "config", "./config.json", "Path to configuration file")
 	flag.Parse()
 
-	validatePath(&configPath)
+	cfgPathValid := validatePath(&configPath)
+	if !cfgPathValid {
+		usage()
+	}
 
-	configFile, err := os.Open(configPath)
-	jsonDecoder := json.NewDecoder(configFile)
-	config := config{}
-	err = jsonDecoder.Decode(&config)
+	configFile, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		usage()
 	}
 
-	fmt.Println(fmt.Sprintf("%+v\n", config))
-	os.Exit(3)
-	setUpLogger()
-
-	validatePath(&logPath)
-
-	if !govalidator.IsURL(webhookURL) || len(channel) < 2 {
+	config := config{}
+	if err = json.Unmarshal(configFile, &config); err != nil {
 		usage()
 	}
 
-	// mh = matterhook.New(webhookURL, matterhook.Config{DisableServer: true})
+	debugDest = config.DebugDest
+	debug = config.Debug
+
+	setUpLogger()
+
+	logConfigs = config.Logs
 }
 
 func main() {
-	// logger.Printf("Monitoring %s", logPath)
-	// logger.Printf("Forwarding entries to channel \"%s\" as user \"%s\" at %s", channel, username, webhookURL)
+	logger.Printf("Starting log monitoring with config %s", configPath)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-	// t, err := tail.TailFile(logPath, tail.Config{
-	// 	Follow:    true,
-	// 	Location:  &tail.SeekInfo{Offset: 0, Whence: 2},
-	// 	MustExist: true,
-	// 	ReOpen:    true,
-	// 	Logger:    logger,
-	// })
-	// if err != nil {
-	// 	logger.Println(err)
-	// 	t.Cleanup()
-	// 	close(sig)
-	// 	os.Exit(3)
-	// }
-
-	// go parseLinesAndSend(t)
+	for _, logCfg := range logConfigs {
+		go tailLog(logCfg)
+	}
 
 	caughtSig := <-sig
-	// t.Stop()
-	// t.Cleanup()
 
 	logger.Printf("Stopping, got signal %s", caughtSig)
 }
 
-func parseLinesAndSend(t *tail.Tail) {
+func tailLog(logCfg logConfig) {
+	if logPathValid := validatePath(&logCfg.LogPath); !logPathValid {
+		if debug {
+			logger.Println("Invalid path: ", fmt.Sprintf("%+v\n", logCfg))
+		}
+
+		return
+	}
+
+	if !govalidator.IsURL(logCfg.WebhookURL) || len(logCfg.Username) == 0 || len(logCfg.Channel) < 2 {
+		if debug {
+			logger.Println("Invalid webhook, username, channel: ", fmt.Sprintf("%+v\n", logCfg))
+		}
+
+		return
+	}
+
+	t, err := tail.TailFile(logCfg.LogPath, tail.Config{
+		Follow:    true,
+		Location:  &tail.SeekInfo{Offset: 0, Whence: 2},
+		MustExist: true,
+		ReOpen:    true,
+		Logger:    logger,
+	})
+	if err != nil {
+		logger.Println(err)
+		t.Cleanup()
+		return
+	}
+
+	mh := matterhook.New(logCfg.WebhookURL, matterhook.Config{DisableServer: true})
+
+	parseLinesAndSend(t, mh, logCfg)
+
+	t.Stop()
+	t.Cleanup()
+}
+
+func parseLinesAndSend(t *tail.Tail, mh *matterhook.Client, logCfg logConfig) {
 	for line := range t.Lines {
 		if line.Err != nil {
 			continue
 		}
 
-		if len(searchRegex) == 0 {
-			go sendLine(line)
-		} else if matched, _ := regexp.MatchString(searchRegex, line.Text); matched {
-			go sendLine(line)
+		if len(logCfg.SearchRegex) == 0 {
+			go sendLine(line, mh, logCfg)
+		} else if matched, _ := regexp.MatchString(logCfg.SearchRegex, line.Text); matched {
+			go sendLine(line, mh, logCfg)
 		}
 	}
 }
 
-func sendLine(line *tail.Line) {
-	// atts := attachments{
-	// 	attachment{
-	// 		Fallback: fmt.Sprintf("New entry in %s", logPath),
-	// 		Pretext:  fmt.Sprintf("In `%s` at `%s`:", logPath, line.Time),
-	// 		Text:     fmt.Sprintf("    %s", line.Text),
-	// 		Color:    color,
-	// 	},
-	// }
+func sendLine(line *tail.Line, mh *matterhook.Client, logCfg logConfig) {
+	atts := attachments{
+		attachment{
+			Fallback: fmt.Sprintf("New entry in %s", logCfg.LogPath),
+			Pretext:  fmt.Sprintf("In `%s` at `%s`:", logCfg.LogPath, line.Time),
+			Text:     fmt.Sprintf("    %s", line.Text),
+			Color:    logCfg.Color,
+		},
+	}
 
-	// mh.Send(matterhook.OMessage{
-	// 	Channel:     channel,
-	// 	UserName:    username,
-	// 	Attachments: atts,
-	// 	IconURL:     iconURL,
-	// })
+	mh.Send(matterhook.OMessage{
+		Channel:     logCfg.Channel,
+		UserName:    logCfg.Username,
+		Attachments: atts,
+		IconURL:     logCfg.IconURL,
+	})
 }
 
 func setUpLogger() {
@@ -178,22 +183,24 @@ func setUpLogger() {
 	}
 }
 
-func validatePath(path *string) {
-	if len(*path) > 1 {
-		var err error
-		*path, err = filepath.Abs(*path)
-
-		if err != nil {
-			fmt.Printf("Error: %s", err.Error())
-			os.Exit(3)
-		}
-
-		if _, err = os.Stat(*path); os.IsNotExist(err) {
-			usage()
-		}
-	} else {
-		usage()
+func validatePath(path *string) bool {
+	if len(*path) <= 1 {
+		return false
 	}
+
+	var err error
+	*path, err = filepath.Abs(*path)
+
+	if err != nil {
+		logger.Printf("Error: %s", err.Error())
+		return false
+	}
+
+	if _, err = os.Stat(*path); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
 }
 
 func usage() {
