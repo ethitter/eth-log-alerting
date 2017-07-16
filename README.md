@@ -19,7 +19,8 @@ Pipe logs to Mattermost (or Slack) webhooks
 1. `chmod +x /etc/init.d/eth-log-alerting`
 1. `cp /usr/local/bin/eth-log-alerting/config-sample.json /usr/local/bin/eth-log-alerting/config.json`
 1. Edit `/usr/local/bin/eth-log-alerting/config.json`
-1. `cp /usr/local/bin/eth-log-alerting/defaults /etc/default/eth-log-alerting`
-1. Edit `/etc/default/eth_log_alerting`
+1. If using a different path for your binary or config file, or if running as other than `root`, override the daemon defaults:
+   1. `cp /usr/local/bin/eth-log-alerting/defaults /etc/default/eth-log-alerting`
+   1. Edit `/etc/default/eth-log-alerting`
 1. `update-rc.d eth-log-alerting defaults`
 1. `/etc/init.d/eth-log-alerting start`
