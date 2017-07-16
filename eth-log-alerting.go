@@ -65,17 +65,16 @@ func init() {
 		usage()
 	}
 
-	config := config{}
-	if err = json.Unmarshal(configFile, &config); err != nil {
+	cfg := config{}
+	if err = json.Unmarshal(configFile, &cfg); err != nil {
 		usage()
 	}
 
-	debugDest = config.DebugDest
-	debug = config.Debug
+	debugDest = cfg.DebugDest
+	debug = cfg.Debug
+	logConfigs = cfg.Logs
 
 	setUpLogger()
-
-	logConfigs = config.Logs
 }
 
 func main() {
