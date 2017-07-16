@@ -1,8 +1,0 @@
-[Unit]
-After=network.target
-
-[Service]
-ExecStart=/usr/local/eth-log-alerting/service.sh
-
-[Install]
-WantedBy=default.target

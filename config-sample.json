@@ -1,0 +1,15 @@
+{
+    "debug-dest": "os.Stdout",
+    "debug": false,
+    "logs": [
+        {
+            "log_path": "",
+            "webhook_url": "",
+            "username": "",
+            "channel": "",
+            "color": "",
+            "icon_url": "",
+            "search": ""
+        }
+    ]
+}
