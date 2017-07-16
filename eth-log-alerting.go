@@ -65,7 +65,7 @@ func init() {
 
 func main() {
 	logger.Printf("Monitoring %s", logPath)
-	logger.Printf("Forwarding to channel \"%s\" as user \"%s\" at %s", channel, username, webhookURL)
+	logger.Printf("Forwarding entries to channel \"%s\" as user \"%s\" at %s", channel, username, webhookURL)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
