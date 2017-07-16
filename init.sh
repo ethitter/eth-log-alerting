@@ -37,7 +37,7 @@ case $1 in
   log_daemon_msg "Starting the process" "$NAME"
   # Start the daemon with the help of start-stop-daemon
   # Log the message appropriately
-  if start-stop-daemon --start --chuid $USER --background --oknodo --pidfile $PIDFILE --make-pidfile --exec $DAEMON -- "$DAEMON_ARGS"; then
+  if start-stop-daemon --start --chuid $USER --background --oknodo --pidfile $PIDFILE --make-pidfile --exec $DAEMON -- $DAEMON_ARGS; then
    log_end_msg 0
   else
    log_end_msg 1
