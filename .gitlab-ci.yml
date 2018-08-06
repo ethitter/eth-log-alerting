@@ -34,7 +34,8 @@ format:
 compile:
   stage: build
   script:
-    - go build -race -ldflags "-extldflags '-static'" -o eth-log-alerting
+    - go get github.com/mitchellh/gox
+    - gox -output="eth-log-alerting-builds/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=4
   artifacts:
     paths:
-      - eth-log-alerting
+      - eth-log-alerting-builds/
