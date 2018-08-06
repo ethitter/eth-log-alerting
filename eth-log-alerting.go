@@ -12,8 +12,8 @@ import (
 	"regexp"
 	"syscall"
 
-	"github.com/42wim/matterbridge/matterhook"
 	"github.com/asaskevich/govalidator"
+	"github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/hpcloud/tail"
 )
 
@@ -32,15 +32,6 @@ type logConfig struct {
 	IconURL     string `json:"icon_url"`
 	SearchRegex string `json:"search"`
 }
-
-type attachment struct {
-	Fallback string `json:"fallback,omitempty"`
-	Pretext  string `json:"pretext,omitempty"`
-	Text     string `json:"text"`
-	Color    string `json:"color,omitempty"`
-}
-
-type attachments []attachment
 
 var (
 	configPath string
@@ -122,44 +113,49 @@ func tailLog(logCfg logConfig) {
 		return
 	}
 
-	mh := matterhook.New(logCfg.WebhookURL, matterhook.Config{DisableServer: true})
-
-	parseLinesAndSend(t, mh, logCfg)
+	parseLinesAndSend(t, logCfg)
 
 	t.Stop()
 	t.Cleanup()
 }
 
-func parseLinesAndSend(t *tail.Tail, mh *matterhook.Client, logCfg logConfig) {
+func parseLinesAndSend(t *tail.Tail, logCfg logConfig) {
 	for line := range t.Lines {
 		if line.Err != nil {
 			continue
 		}
 
 		if len(logCfg.SearchRegex) == 0 {
-			go sendLine(line, mh, logCfg)
+			go sendLine(line, logCfg)
 		} else if matched, _ := regexp.MatchString(logCfg.SearchRegex, line.Text); matched {
-			go sendLine(line, mh, logCfg)
+			go sendLine(line, logCfg)
 		}
 	}
 }
 
-func sendLine(line *tail.Line, mh *matterhook.Client, logCfg logConfig) {
-	atts := attachments{
-		attachment{
-			Fallback: fmt.Sprintf("New entry in %s", logCfg.LogPath),
-			Pretext:  fmt.Sprintf("In `%s` at `%s`:", logCfg.LogPath, line.Time),
-			Text:     fmt.Sprintf("    %s", line.Text),
-			Color:    logCfg.Color,
-		},
+func sendLine(line *tail.Line, logCfg logConfig) {
+	fallback := fmt.Sprintf("New entry in %s", logCfg.LogPath)
+	pretext := fmt.Sprintf("In `%s` at `%s`:", logCfg.LogPath, line.Time)
+	text := fmt.Sprintf("```\n%s\n```", line.Text)
+	att := slack.Attachment{
+		Color:    &logCfg.Color,
+		Fallback: &fallback,
+		PreText:  &pretext,
+		Text:     &text,
 	}
 
-	mh.Send(matterhook.OMessage{
+	payload := slack.Payload{
+		Username:    logCfg.Username,
 		Channel:     logCfg.Channel,
-		UserName:    logCfg.Username,
-		Attachments: atts,
-		IconURL:     logCfg.IconURL,
-	})
+		IconUrl:     logCfg.IconURL,
+		Attachments: []slack.Attachment{att},
+	}
+
+	err := slack.Send(logCfg.WebhookURL, "", payload)
+	if len(err) > 0 {
+		fmt.Printf("error: %s\n", err)
+	}
+
 }
 
 func setUpLogger() {

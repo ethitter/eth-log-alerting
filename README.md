@@ -1,4 +1,4 @@
-Log Alerting
+Log Alerting [![pipeline status](https://git.ethitter.com/debian/eth-log-alerting/badges/master/pipeline.svg)](https://git.ethitter.com/debian/eth-log-alerting/commits/master)
 ============
 
 Pipe logs to Mattermost (or Slack) webhooks
@@ -11,7 +11,7 @@ Pipe logs to Mattermost (or Slack) webhooks
 
 1. `git clone https://git.ethitter.com/debian/eth-log-alerting.git /usr/local/bin/eth-log-alerting`
 1. `cd /usr/local/bin/eth-log-alerting`
-1. `go get github.com/42wim/matterbridge/matterhook`
+1. `go get github.com/ashwanthkumar/slack-go-webhook`
 1. `go get github.com/asaskevich/govalidator`
 1. `go get github.com/hpcloud/tail`
 1. `go build eth-log-alerting.go`
