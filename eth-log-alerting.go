@@ -134,19 +134,20 @@ func parseLinesAndSend(t *tail.Tail, logCfg logConfig) {
 }
 
 func sendLine(line *tail.Line, logCfg logConfig) {
-	text := fmt.Sprintf("    %s", line.Text)
-
-	att := slack.Attachment{}
-	att.AddField(slack.Field{Title: "Fallback", Value: fmt.Sprintf("New entry in %s", logCfg.LogPath)})
-	att.AddField(slack.Field{Title: "Pretext", Value: fmt.Sprintf("In `%s` at `%s`:", logCfg.LogPath, line.Time)})
-	att.AddField(slack.Field{Title: "Text", Value: text})
-	att.AddField(slack.Field{Title: "Color", Value: logCfg.Color})
+	fallback := fmt.Sprintf("New entry in %s", logCfg.LogPath)
+	pretext := fmt.Sprintf("In `%s` at `%s`:", logCfg.LogPath, line.Time)
+	text := fmt.Sprintf("```\n%s\n```", line.Text)
+	att := slack.Attachment{
+		Color:    &logCfg.Color,
+		Fallback: &fallback,
+		PreText:  &pretext,
+		Text:     &text,
+	}
 
 	payload := slack.Payload{
-		Text:        text,
 		Username:    logCfg.Username,
 		Channel:     logCfg.Channel,
-		IconEmoji:   logCfg.IconURL,
+		IconUrl:     logCfg.IconURL,
 		Attachments: []slack.Attachment{att},
 	}
 
