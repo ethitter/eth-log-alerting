@@ -10,6 +10,7 @@ image: golang:latest
 before_script:
     - ln -s /builds /go/src/git.ethitter.com
     - cd /go/src/git.ethitter.com/debian/eth-log-alerting
+    - go version
 
 stages:
     - test
