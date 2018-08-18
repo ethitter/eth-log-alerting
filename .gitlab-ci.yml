@@ -1,4 +1,4 @@
-image: golang:latest
+image: containers.ethitter.com:443/docker/images/golang:latest
 
 variables:
   REPO_NAME: git.ethitter.com/debian/eth-log-alerting
@@ -19,6 +19,8 @@ before_script:
   - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
   - cp -R $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
   - cd $GOPATH/src/$REPO_NAME
+
+  - export CC=clang-5.0
 
   - make dep
 

@@ -27,7 +27,6 @@ coverhtml:
 
 dep:
 	@go get -v -d ./...
-	@go get -u github.com/golang/lint/golint
 	@go get github.com/mitchellh/gox
 
 build: dep
