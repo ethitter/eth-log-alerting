@@ -1,22 +1,25 @@
 image: golang:latest
 
+variables:
+  REPO_NAME: git.ethitter.com/debian/eth-log-alerting
+
 cache:
   paths:
     - /apt-cache
-    - /go/src/github.com
-    - /go/src/golang.org
-    - /go/src/google.golang.org
-    - /go/src/gopkg.in
-    - /go/src/git.ethitter.com
+    - $GOPATH/src/github.com
+    - $GOPATH/src/golang.org
+    - $GOPATH/src/google.golang.org
+    - $GOPATH/src/gopkg.in
 
 stages:
   - test
   - build
 
 before_script:
-  - mkdir -p /go/src/git.ethitter.com/debian /go/src/_/builds
-  - cp -r $CI_PROJECT_DIR /go/src/git.ethitter.com/debian/eth-log-alerting
-  - ln -s /go/src/git.ethitter.com/debian /go/src/_/builds/debian
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+
   - make dep
 
 unit_tests:
