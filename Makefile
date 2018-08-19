@@ -11,13 +11,13 @@ lint:
 	@golint -set_exit_status ${PKG_LIST}
 
 test:
-	@go test -short ${PKG_LIST}
+	@go test -v -short ${PKG_LIST}
 
 race: dep
-	@go test -race -short ${PKG_LIST}
+	@go test -v -race -short ${PKG_LIST}
 
 msan: dep
-	@go test -msan -short ${PKG_LIST}
+	@go test -v -msan -short ${PKG_LIST}
 
 coverage:
 	./tools/coverage.sh;
