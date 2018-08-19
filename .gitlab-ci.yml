@@ -1,41 +1,66 @@
-# This file is a template, and might need editing before it works on your project.
-image: golang:latest
+image: containers.ethitter.com:443/docker/images/golang:latest
 
 variables:
   REPO_NAME: git.ethitter.com/debian/eth-log-alerting
 
-# The problem is that to be able to use go get, one needs to put
-# the repository in the $GOPATH. So for example if your gitlab domain
-# is gitlab.com, and that your repository is namespace/project, and
-# the default GOPATH being /go, then you'd need to have your
-# repository in /go/src/gitlab.com/namespace/project
-# Thus, making a symbolic link corrects this.
-before_script:
-  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
-  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
-  - cd $GOPATH/src/$REPO_NAME
-
-  - go version
-
-  - go get github.com/asaskevich/govalidator
-  - go get github.com/ashwanthkumar/slack-go-webhook
-  - go get github.com/hpcloud/tail
+cache:
+  paths:
+    - /apt-cache
+    - $GOPATH/src/github.com
+    - $GOPATH/src/golang.org
+    - $GOPATH/src/google.golang.org
+    - $GOPATH/src/gopkg.in
 
 stages:
   - test
   - build
 
-format:
+before_script:
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - cp -R $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+  - cp config-sample.json config.json
+
+  - export CC=clang-5.0
+
+  - make dep
+
+unit_tests:
   stage: test
   script:
-    - go tool vet -composites=false -shadow=true *.go
-    - go test -race $(go list ./... | grep -v /vendor/)
+    - make test
 
-compile:
+race_detector:
+  stage: test
+  script:
+    - make race
+
+memory_sanitizer:
+  stage: test
+  script:
+    - make msan
+
+code_coverage:
+  stage: test
+  script:
+    - make coverage
+
+code_coverage_report:
+  stage: test
+  script:
+    - make coverhtml
+  only:
+  - master
+
+lint_code:
+  stage: test
+  script:
+    - make lint
+
+build:
   stage: build
   script:
-    - go get github.com/mitchellh/gox
-    - gox -output="eth-log-alerting-builds/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=4
+    - make
   artifacts:
     paths:
       - eth-log-alerting-builds/
