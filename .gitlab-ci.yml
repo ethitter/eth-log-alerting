@@ -19,6 +19,7 @@ before_script:
   - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
   - cp -R $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
   - cd $GOPATH/src/$REPO_NAME
+  - cp config-sample.json config.json
 
   - export CC=clang-5.0
 
