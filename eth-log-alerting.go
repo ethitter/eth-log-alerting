@@ -42,7 +42,7 @@ var (
 	debug     bool
 )
 
-func init() {
+func initConfig() {
 	flag.StringVar(&configPath, "config", "./config.json", "Path to configuration file")
 	flag.Parse()
 
@@ -69,6 +69,8 @@ func init() {
 }
 
 func main() {
+	initConfig()
+
 	logger.Printf("Starting log monitoring with config %s", configPath)
 
 	sig := make(chan os.Signal, 1)
